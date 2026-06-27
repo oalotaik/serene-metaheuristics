@@ -1,2 +1,29 @@
+# Core tooling
 ipykernel
 python-dotenv
+
+# Numerical / data stack (pinned to current .venv)
+numpy==2.5.0
+scipy==1.18.0
+pandas
+networkx==3.6.1
+PyYAML==6.0.3
+tqdm==4.68.3
+
+# Plotting
+matplotlib
+
+# ML controller (lightweight classical: Bayesian-linear Thompson sampling + GBDT surrogate)
+scikit-learn==1.9.0
+lightgbm
+
+# Optimization: per-period max-min LP oracle + exact MMF (MILP) reference
+# Open-source first (CBC via PuLP); Gurobi to be added later for a speed comparison.
+pulp
+
+# NOTE: torch is present in .venv but intentionally NOT a project dependency
+# (controller is classical, not neural). Do not build on it without a decision.
+
+# Benchmark loaders for the secondary testbeds (TSP / CVRP / QAP) — add when P6 starts:
+# tsplib95
+# vrplib

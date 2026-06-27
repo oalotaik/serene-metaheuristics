@@ -94,3 +94,17 @@ target/
 
 # exclude data from source control by default
 # /data/
+
+# Exclude reference paper
+references/reference-paper
+
+# exclude notes
+notes.txt
+
+# exclude log and Claude files
+PROJECT_LOG.md
+CLAUDE.md
+
+# exclude algorithm files
+references/SERENE-MH.docx
+references/SERENE-MH.pdf
