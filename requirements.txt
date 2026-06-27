@@ -1,6 +1,7 @@
 # Core tooling
 ipykernel
 python-dotenv
+pytest
 
 # Numerical / data stack (pinned to current .venv)
 numpy==2.5.0

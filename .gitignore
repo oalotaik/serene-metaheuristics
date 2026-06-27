@@ -83,8 +83,9 @@ target/
 *.swp
 *.swo
 
-# Mypy cache
+# Mypy / pytest caches
 .mypy_cache/
+.pytest_cache/
 
 # Exclude virtual environment
 .venv/

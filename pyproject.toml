@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "serene-mh"
+version = "0.0.1"
+description = "SERENE-MH: Sample-Efficient Reinforcement-Enhanced Neighborhood Exploration for MetaHeuristics"
+requires-python = ">=3.13"
+# Core runtime dep only; the full experiment/solver/ML stack is pinned in requirements.txt.
+dependencies = ["numpy"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
