@@ -7,14 +7,18 @@ lives behind the Problem / Operator interfaces.
 The budget is measured in *objective evaluations* (calls to problem.evaluate),
 because being efficient in that count is the whole point of SERENE-MH.
 
-The loop each iteration:
-  1. ask the selector for an action and build the candidate it produces,
-  2. evaluate the candidate (this is the expensive step we count),
-  3. work out the reward the action earned,
-  4. ask the acceptance criterion whether to move to the candidate,
-  5. update the best-so-far,
-  6. let the selector learn from the reward,
-  7. record a row of history.
+Each iteration the selector returns a small *slate* of actions to actually try.
+Baseline selectors return a single action; the SERENE-MH controller proposes
+several candidates, gates them with a surrogate, and returns only the few worth
+a real evaluation. The engine then:
+  1. applies each action in the slate to the current incumbent,
+  2. evaluates each resulting candidate (the expensive, counted step),
+  3. rewards each action by how much it improved on the incumbent (this reward
+     is independent of whether the move is later accepted - that is exactly the
+     'counterfactual credit' SERENE-MH relies on),
+  4. takes the best candidate of the slate and asks the acceptance criterion
+     whether to move there,
+  5. updates the best-so-far and lets the selector learn from all the outcomes.
 """
 
 from collections import deque
@@ -24,11 +28,23 @@ from .problem import Solution
 
 
 @dataclass
+class Outcome:
+    """The result of trying one action during an iteration."""
+
+    index: int          # which action (its position in selector.actions)
+    action: object      # the Action object
+    candidate: Solution # the solution it produced (already evaluated)
+    reward: float       # improvement over the incumbent it started from
+    accepted: bool = False  # True only for the slate's chosen candidate, if accepted
+    new_best: bool = False  # did this candidate become the new best-so-far?
+
+
+@dataclass
 class SearchState:
     """Everything the loop tracks about the current run.
 
     `telemetry()` returns a small snapshot of progress. Baseline selectors ignore
-    it, but SERENE-MH will later use it as the context features for its policy.
+    it, but the SERENE-MH controller uses it as the context features for its policy.
     """
 
     problem: object
@@ -49,13 +65,15 @@ class SearchState:
         accept_rate = (
             sum(self.recent_accepts) / len(self.recent_accepts) if self.recent_accepts else 0.0
         )
+        incumbent_gap = 0.0
+        if self.best.objective is not None and abs(self.best.objective) > 1e-12:
+            incumbent_gap = (self.incumbent.objective - self.best.objective) / abs(self.best.objective)
         return {
             "frac_budget": frac_budget,
-            "incumbent_obj": self.incumbent.objective,
-            "best_obj": self.best.objective,
-            "stagnation": self.stagnation,
             "recent_improvement": recent_improvement,
             "accept_rate": accept_rate,
+            "stagnation": self.stagnation,
+            "incumbent_gap": incumbent_gap,
         }
 
 
@@ -109,36 +127,44 @@ def run_search(
 
     history = []
     while state.n_evals < max_evals:
-        # 1. choose an action and build the candidate it produces
-        index = selector.select(state, rng)
-        action = selector.actions[index]
-        candidate = action.operator.apply(state.incumbent, rng, **action.params)
+        start_incumbent = state.incumbent  # all slate moves are measured from here
 
-        # 2. evaluate the candidate (the expensive, counted step)
-        candidate.objective = problem.evaluate(candidate)
-        state.n_evals += 1
+        # 1. ask the selector which action(s) to actually try this iteration
+        slate = selector.select(state, rng)
 
-        # 3. reward the action, measured against the incumbent it started from
-        reward = reward_fn(state.incumbent, candidate)
+        # 2. apply and evaluate each action in the slate
+        outcomes = []
+        for index in slate:
+            action = selector.actions[index]
+            candidate = action.operator.apply(start_incumbent, rng, **action.params)
+            candidate.objective = problem.evaluate(candidate)
+            state.n_evals += 1
+            reward = reward_fn(start_incumbent, candidate)
+            outcomes.append(Outcome(index=index, action=action, candidate=candidate, reward=reward))
+            if state.n_evals >= max_evals:
+                break
 
-        # 4. accept or reject
-        accepted = acceptance.accept(state, candidate, rng)
+        # 3. take the best candidate of the slate; let acceptance decide on it
+        best_outcome = min(outcomes, key=lambda o: o.candidate.objective)
+        accepted = acceptance.accept(state, best_outcome.candidate, rng)
+        best_outcome.accepted = accepted
         if accepted:
-            state.incumbent = candidate
+            state.incumbent = best_outcome.candidate
 
-        # 5. track the best solution found so far
-        improved_best = candidate.objective < state.best.objective
-        if improved_best:
-            state.best = candidate
-            state.stagnation = 0
-        else:
-            state.stagnation += 1
+        # 4. update best-so-far across every candidate we evaluated this iteration
+        improved_best = False
+        for o in outcomes:
+            if o.candidate.objective < state.best.objective:
+                state.best = o.candidate
+                o.new_best = True
+                improved_best = True
+        state.stagnation = 0 if improved_best else state.stagnation + 1
 
-        # 6. let the selector learn
-        selector.update(index, reward, info={"accepted": accepted, "new_best": improved_best})
+        # 5. let the selector learn from all outcomes
+        selector.update(state, outcomes, rng)
 
-        # 7. bookkeeping
-        state.recent_rewards.append(reward)
+        # 6. bookkeeping
+        state.recent_rewards.append(max(o.reward for o in outcomes))
         state.recent_accepts.append(1 if accepted else 0)
         acceptance.step(state)
         state.iteration += 1
@@ -147,8 +173,8 @@ def run_search(
                 {
                     "iteration": state.iteration,
                     "n_evals": state.n_evals,
-                    "action": action.label,
-                    "reward": reward,
+                    "actions": [o.action.label for o in outcomes],
+                    "best_reward": max(o.reward for o in outcomes),
                     "accepted": accepted,
                     "incumbent_obj": state.incumbent.objective,
                     "best_obj": state.best.objective,

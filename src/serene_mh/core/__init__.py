@@ -22,6 +22,7 @@ from .selectors import (
     EXP3,
 )
 from .engine import (
+    Outcome,
     SearchState,
     SearchResult,
     run_search,
@@ -44,6 +45,7 @@ __all__ = [
     "Roulette",
     "UCB1",
     "EXP3",
+    "Outcome",
     "SearchState",
     "SearchResult",
     "run_search",
