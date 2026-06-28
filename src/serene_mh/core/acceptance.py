@@ -49,17 +49,39 @@ class Greedy(AcceptanceCriterion):
 
 class SimulatedAnnealing(AcceptanceCriterion):
     """Accept improving moves always; accept a worsening move with probability
-    exp(-delta / T), where delta is how much worse it is. The temperature T
-    cools geometrically (T <- T * cooling) each iteration, so worse moves are
-    common early and rare late.
+    exp(-delta / T). The temperature T cools geometrically each iteration, so
+    worse moves are common early and rare late.
+
+    Two design choices keep this usable across very different problems:
+
+    * RELATIVE deltas. We divide the worsening `delta` by the incumbent's
+      magnitude, so `t_start` means roughly "the fractional worsening tolerated
+      early on" regardless of whether tour lengths are ~50 or ~50,000. (A fixed
+      absolute temperature silently collapses SA into greedy on large-objective
+      problems - the bug we hit on TSP.)
+
+    * BUDGET-AWARE cooling. If you pass `max_evals`, the cooling rate is set so
+      the temperature glides from `t_start` down to `t_min` over the whole run,
+      instead of needing a hand-tuned per-iteration rate.
     """
 
     name = "SA"
 
-    def __init__(self, t_start: float = 1.0, cooling: float = 0.999, t_min: float = 1e-6):
+    def __init__(
+        self,
+        t_start: float = 0.1,
+        t_min: float = 1e-4,
+        cooling: float | None = None,
+        max_evals: int | None = None,
+        relative: bool = True,
+    ):
         self.t_start = t_start
-        self.cooling = cooling
         self.t_min = t_min
+        self.relative = relative
+        if cooling is None:
+            # glide t_start -> t_min across the budget (approx. one eval per step)
+            cooling = (t_min / t_start) ** (1.0 / max_evals) if max_evals else 0.999
+        self.cooling = cooling
         self.t = t_start
 
     def reset(self) -> None:
@@ -69,24 +91,33 @@ class SimulatedAnnealing(AcceptanceCriterion):
         delta = candidate.objective - state.incumbent.objective
         if delta <= 0:
             return True
-        return rng.random() < math.exp(-delta / max(self.t, self.t_min))
+        scale = max(abs(state.incumbent.objective), 1e-12) if self.relative else 1.0
+        return rng.random() < math.exp(-(delta / scale) / max(self.t, self.t_min))
 
     def step(self, state) -> None:
         self.t = max(self.t * self.cooling, self.t_min)
 
 
 class Tabu(AcceptanceCriterion):
-    """Accept the candidate unless we visited it very recently (it is 'tabu').
-    Always accept if it is the best solution found so far (the 'aspiration' rule).
+    """Short-term memory + bounded worsening (Tabu adapted to sample-based search).
 
-    This lets the search move to worse solutions to escape local optima while
-    avoiding immediate cycling. `tenure` is how many recent solutions to forbid.
+    Classic Tabu Search scans a whole neighbourhood and moves to the best
+    non-tabu neighbour, which may be worse but is usually only slightly worse.
+    Our loop samples only a few candidates per step, so "accept any non-tabu
+    candidate, however bad" collapses into a random walk. We therefore keep the
+    tabu memory (anti-cycling) and the aspiration rule, but only allow a
+    *bounded* worsening move (within `max_worse`, relative to the incumbent) -
+    enough to climb out of local optima without wandering off.
+
+    `tenure` is how many recent solutions to forbid; `max_worse` is the largest
+    fractional worsening accepted for a non-tabu, non-improving move.
     """
 
     name = "Tabu"
 
-    def __init__(self, tenure: int = 15):
+    def __init__(self, tenure: int = 20, max_worse: float = 0.05):
         self.tenure = tenure
+        self.max_worse = max_worse
         self.recent = deque(maxlen=tenure)
 
     def reset(self) -> None:
@@ -94,12 +125,18 @@ class Tabu(AcceptanceCriterion):
 
     def accept(self, state, candidate, rng) -> bool:
         sig = state.problem.signature(candidate)
-        is_tabu = sig in self.recent
         aspiration = candidate.objective < state.best.objective
-        if is_tabu and not aspiration:
-            return False
-        self.recent.append(sig)
-        return True
+        if sig in self.recent and not aspiration:
+            return False  # tabu and not good enough to override
+        delta = candidate.objective - state.incumbent.objective
+        if delta <= 0 or aspiration:
+            self.recent.append(sig)
+            return True
+        # worsening, non-tabu: accept only within a bounded tolerance
+        if delta <= self.max_worse * max(abs(state.incumbent.objective), 1e-12):
+            self.recent.append(sig)
+            return True
+        return False
 
 
 class RecordToRecord(AcceptanceCriterion):
