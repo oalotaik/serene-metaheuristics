@@ -77,6 +77,19 @@ def test_multi_exec_budget_accounting():
     assert result.n_iterations < 300  # ~2 evals per iteration
 
 
+def test_lgbm_gating_runs_and_trains():
+    problem = OneMax()
+    selector = SereneMH(
+        build_actions(problem.operators()),
+        slate_size=3, n_exec=1, gating="lgbm", min_data=30, refit_every=20,
+    )
+    rng = np.random.default_rng(0)
+    result = run_search(problem, selector, Greedy(), max_evals=300, rng=rng)
+    assert result.n_evals == 300
+    assert result.best_objective < LENGTH / 3
+    assert selector.surrogate.ready  # the surrogate was refit at least once
+
+
 def test_export_and_warmstart():
     selector, _ = _run(slate_size=1, n_exec=1)
     mean = selector.export_mean()

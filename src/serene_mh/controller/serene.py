@@ -87,6 +87,9 @@ class SereneMH:
         prior_precision: float = 1.0,
         prior_mean=None,
         use_context: bool = True,
+        gating: str = "linear",
+        refit_every: int = 50,
+        min_data: int = 50,
     ):
         self.actions = actions
         self.n = len(actions)
@@ -95,6 +98,14 @@ class SereneMH:
         self.nu = exploration
         self.lam = prior_precision
         self.use_context = use_context
+
+        # gating score: "linear" = the policy's posterior mean; "lgbm" = a
+        # LightGBM reward model (the ablation showed gating is the key component).
+        self.gating = gating
+        self.surrogate = None
+        if gating == "lgbm":
+            from .surrogate import LGBMSurrogate
+            self.surrogate = LGBMSurrogate(self.n, refit_every=refit_every, min_data=min_data)
 
         # feature size: each action gets a block of [bias, context...].
         # With use_context=False the block is just the bias (a non-contextual
@@ -107,7 +118,8 @@ class SereneMH:
         self._init_posterior()
 
         # filled in by `select`, read by `update`
-        self._phi = None  # feature matrix for the current step, shape (n, d)
+        self._phi = None          # feature matrix for the current step, shape (n, d)
+        self._context_vec = None  # context vector for the current step (for the surrogate)
 
     # ------------------------------------------------------------------ posterior
     def _init_posterior(self):
@@ -127,6 +139,9 @@ class SereneMH:
     def reset(self):
         self._init_posterior()
         self._phi = None
+        self._context_vec = None
+        if self.surrogate is not None:
+            self.surrogate.reset()
 
     # ------------------------------------------------------------------ features
     def _context(self, state) -> np.ndarray:
@@ -167,6 +182,7 @@ class SereneMH:
 
     def select(self, state, rng) -> list[int]:
         context = self._context(state)
+        self._context_vec = context  # remember for update() / the surrogate
         phi = self._feature_matrix(context)
         self._phi = phi  # remember for update()
 
@@ -174,23 +190,32 @@ class SereneMH:
         sampled = phi @ self._sample_weights(rng)
         proposed = np.argsort(-sampled)[: self.slate_size]
 
-        # 2. gate: among the proposed, evaluate the `n_exec` best under the mean
+        # 2. gate: among the proposed, evaluate the `n_exec` best under the surrogate.
+        #    The LightGBM surrogate is used once trained; until then we fall back to
+        #    the linear posterior-mean score.
         if self.n_exec >= len(proposed):
             executed = proposed
         else:
-            mean_scores = phi[proposed] @ self.mu
-            keep = np.argsort(-mean_scores)[: self.n_exec]
+            if self.surrogate is not None and self.surrogate.ready:
+                gate_scores = self.surrogate.predict(context, proposed)
+            else:
+                gate_scores = phi[proposed] @ self.mu
+            keep = np.argsort(-gate_scores)[: self.n_exec]
             executed = proposed[keep]
 
         return [int(i) for i in executed]
 
     # ------------------------------------------------------------------ learning
     def update(self, state, outcomes, rng) -> None:
-        """Update the posterior with the reward each evaluated action earned."""
+        """Update the posterior (and the surrogate) with the observed rewards."""
         for o in outcomes:
             phi = self._phi[o.index]
             self._posterior_update(phi, o.reward)
+            if self.surrogate is not None:
+                self.surrogate.observe(self._context_vec, o.index, o.reward)
         self.mu = self.A_inv @ self.b
+        if self.surrogate is not None:
+            self.surrogate.maybe_refit()
 
     def _posterior_update(self, phi: np.ndarray, reward: float) -> None:
         """Rank-1 Bayesian-linear update (Sherman-Morrison) for one (phi, reward)."""
