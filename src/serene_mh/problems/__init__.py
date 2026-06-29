@@ -19,7 +19,19 @@ from .tsp import (
     random_euclidean_instance,
 )
 from .tsplib import load_tsplib
-from .cflp import CFLP, CloseOne, OpenOne, Swap as CflpSwap, assignment_cost, random_cflp_instance
+from .cflp import (
+    CFLP,
+    CloseOne,
+    OpenOne,
+    Swap as CflpSwap,
+    MultiFlip,
+    GreedyDrop,
+    GreedyOpen,
+    GreedySwap,
+    DestroyRepair as CflpDestroyRepair,
+    assignment_cost,
+    random_cflp_instance,
+)
 from .benchmarks import (
     download_tsplib,
     load_benchmarks,
@@ -28,6 +40,15 @@ from .benchmarks import (
     PAPER1,
     PAPER1_TSP,
     PAPER1_ATSP,
+)
+from .cflp_benchmarks import (
+    download_cflp,
+    load_cflp_file,
+    load_cflp_benchmarks,
+    load_cflp_optima,
+    solve_cflp_exact,
+    parse_cflp,
+    CAP_INSTANCES,
 )
 
 __all__ = [
@@ -44,8 +65,20 @@ __all__ = [
     "random_euclidean_instance",
     "load_tsplib",
     "CFLP",
+    "MultiFlip",
+    "GreedyDrop",
+    "GreedyOpen",
+    "GreedySwap",
+    "CflpDestroyRepair",
     "assignment_cost",
     "random_cflp_instance",
+    "download_cflp",
+    "load_cflp_file",
+    "load_cflp_benchmarks",
+    "load_cflp_optima",
+    "solve_cflp_exact",
+    "parse_cflp",
+    "CAP_INSTANCES",
     "download_tsplib",
     "load_benchmarks",
     "load_optima",
