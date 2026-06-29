@@ -19,6 +19,7 @@ from .tsp import (
     random_euclidean_instance,
 )
 from .tsplib import load_tsplib
+from .cflp import CFLP, CloseOne, OpenOne, Swap as CflpSwap, assignment_cost, random_cflp_instance
 from .benchmarks import (
     download_tsplib,
     load_benchmarks,
@@ -42,6 +43,9 @@ __all__ = [
     "nearest_neighbor_tour",
     "random_euclidean_instance",
     "load_tsplib",
+    "CFLP",
+    "assignment_cost",
+    "random_cflp_instance",
     "download_tsplib",
     "load_benchmarks",
     "load_optima",
