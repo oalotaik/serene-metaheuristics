@@ -86,6 +86,7 @@ class SereneMH:
         exploration: float = 0.3,
         prior_precision: float = 1.0,
         prior_mean=None,
+        use_context: bool = True,
     ):
         self.actions = actions
         self.n = len(actions)
@@ -93,9 +94,12 @@ class SereneMH:
         self.n_exec = max(1, min(n_exec, self.slate_size))
         self.nu = exploration
         self.lam = prior_precision
+        self.use_context = use_context
 
         # feature size: each action gets a block of [bias, context...].
-        self.m = len(self.CONTEXT_KEYS) + 2  # + stagnation + incumbent_gap (transformed)
+        # With use_context=False the block is just the bias (a non-contextual
+        # Thompson-sampling bandit) - used for ablations.
+        self.m = (len(self.CONTEXT_KEYS) + 2) if use_context else 0
         self.block = self.m + 1              # +1 bias term per action block
         self.d = self.n * self.block
 
@@ -127,6 +131,8 @@ class SereneMH:
     # ------------------------------------------------------------------ features
     def _context(self, state) -> np.ndarray:
         """Turn the search telemetry into a short, bounded feature vector."""
+        if not self.use_context:
+            return np.empty(0)  # non-contextual ablation: only the per-action bias
         t = state.telemetry()
         # the three already-bounded signals
         base = [min(max(t[k], 0.0), 1.0) for k in self.CONTEXT_KEYS]

@@ -7,6 +7,7 @@ from .presets import standard_configs
 from . import stats
 from . import plots
 from . import metrics
+from . import analysis
 
 __all__ = [
     "Config",
@@ -17,4 +18,5 @@ __all__ = [
     "stats",
     "plots",
     "metrics",
+    "analysis",
 ]

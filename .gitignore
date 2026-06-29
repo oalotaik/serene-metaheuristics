@@ -109,3 +109,7 @@ CLAUDE.md
 # exclude algorithm files
 references/SERENE-MH.docx
 references/SERENE-MH.pdf
+references/SERENE-MH-code-traceability.pdf
+
+# figures are regenerable from scripts + committed data; keep CSV tables tracked
+results/figures/

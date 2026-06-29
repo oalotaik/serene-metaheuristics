@@ -96,6 +96,26 @@ def test_add_metrics_columns(study):
     assert np.allclose(enriched["q100"], enriched["best"])
 
 
+def test_analysis_summary_writes_csvs(study, tmp_path):
+    from serene_mh.experiments import analysis
+
+    # the fixture has no optima; use a per-instance best as a stand-in reference
+    optima = study.results.groupby("instance")["best"].min().to_dict()
+    df = analysis.enrich(study, optima)
+    assert {"selector", "host", "gap", "auc"} <= set(df.columns)
+
+    ranks = analysis.rank_table(df, "auc")
+    assert "avg_rank" in ranks.columns and "friedman_p" in ranks.columns
+
+    wil = analysis.within_host_vs(df, "auc", reference="serene")
+    assert {"host", "baseline", "p_holm", "significant"} <= set(wil.columns)
+
+    out = tmp_path / "sum"
+    analysis.save_summary(study, optima, str(out))
+    for fname in ("results.csv", "ranks.csv", "within_host_means.csv", "within_host_wilcoxon.csv"):
+        assert (out / fname).exists()
+
+
 def test_average_ranks_orders_dominant_config_first():
     # synthetic blocks x configs where "good" is always best (lowest)
     import pandas as pd

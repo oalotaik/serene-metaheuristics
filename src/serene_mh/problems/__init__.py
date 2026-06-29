@@ -19,6 +19,15 @@ from .tsp import (
     random_euclidean_instance,
 )
 from .tsplib import load_tsplib
+from .benchmarks import (
+    download_tsplib,
+    load_benchmarks,
+    load_optima,
+    OPTIMA,
+    PAPER1,
+    PAPER1_TSP,
+    PAPER1_ATSP,
+)
 
 __all__ = [
     "TSP",
@@ -33,4 +42,11 @@ __all__ = [
     "nearest_neighbor_tour",
     "random_euclidean_instance",
     "load_tsplib",
+    "download_tsplib",
+    "load_benchmarks",
+    "load_optima",
+    "OPTIMA",
+    "PAPER1",
+    "PAPER1_TSP",
+    "PAPER1_ATSP",
 ]
