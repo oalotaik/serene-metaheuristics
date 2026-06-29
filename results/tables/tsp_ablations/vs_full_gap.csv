@@ -1,0 +1,7 @@
+host,metric,reference,baseline,winner,p,p_holm,significant
+ALNS,gap,serene-full,uniform,serene-full,0.0031528472900390625,0.018917083740234375,True
+ALNS,gap,serene-full,serene-nogate,serene-full,0.0042209625244140625,0.021104812622070312,True
+ALNS,gap,serene-full,serene-noexpl,serene-noexpl,0.04844093322753906,0.19376373291015625,False
+ALNS,gap,serene-full,roulette,serene-full,0.13272666931152344,0.3981800079345703,False
+ALNS,gap,serene-full,serene-plainTS,serene-full,0.2305126190185547,0.4610252380371094,False
+ALNS,gap,serene-full,serene-noctx,serene-noctx,0.6476554870605469,0.6476554870605469,False
