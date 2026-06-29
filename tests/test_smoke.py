@@ -23,6 +23,7 @@ from serene_mh.core import (
     Roulette,
     UCB1,
     EXP3,
+    GreedyMean,
     run_search,
 )
 
@@ -63,7 +64,7 @@ class FlipBits(Operator):
         return Solution(data=bits)
 
 
-SELECTORS = [UniformRandom, Roulette, UCB1, EXP3]
+SELECTORS = [UniformRandom, Roulette, UCB1, EXP3, GreedyMean]
 
 
 def _make_acceptances():

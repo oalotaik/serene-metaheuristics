@@ -20,6 +20,7 @@ from .selectors import (
     Roulette,
     UCB1,
     EXP3,
+    GreedyMean,
 )
 from .engine import (
     Outcome,
@@ -45,6 +46,7 @@ __all__ = [
     "Roulette",
     "UCB1",
     "EXP3",
+    "GreedyMean",
     "Outcome",
     "SearchState",
     "SearchResult",

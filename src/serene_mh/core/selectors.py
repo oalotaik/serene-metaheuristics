@@ -121,6 +121,46 @@ class UCB1(OperatorSelector):
             self.means[o.index] += (o.reward - self.means[o.index]) / self.counts[o.index]
 
 
+class GreedyMean(OperatorSelector):
+    """Non-Bayesian greedy AOS: track each operator's *raw* mean reward, try each
+    once, then always pick the operator with the highest mean (random tie-break).
+
+    This is the simplest "exploit the best operator" selector. It exists to test
+    whether SERENE-MH's Bayesian posterior-mean value (a shrinkage estimate) adds
+    anything beyond plain greedy mean-tracking - the two differ only in how the
+    per-operator value is estimated (raw mean here vs ridge-shrunk posterior mean).
+    `epsilon` optionally adds uniform exploration.
+    """
+
+    name = "greedy-mean"
+
+    def __init__(self, actions, epsilon: float = 0.0):
+        super().__init__(actions)
+        self.epsilon = epsilon
+        self.counts = [0] * self.n
+        self.sums = [0.0] * self.n
+
+    def reset(self) -> None:
+        self.counts = [0] * self.n
+        self.sums = [0.0] * self.n
+
+    def select(self, state, rng) -> list[int]:
+        for i in range(self.n):
+            if self.counts[i] == 0:
+                return [i]  # try each operator once
+        if self.epsilon > 0 and rng.random() < self.epsilon:
+            return [int(rng.integers(self.n))]
+        means = [self.sums[i] / self.counts[i] for i in range(self.n)]
+        best = max(means)
+        winners = [i for i, m in enumerate(means) if m >= best - 1e-12]
+        return [int(rng.choice(winners))]  # random tie-break
+
+    def update(self, state, outcomes, rng) -> None:
+        for o in outcomes:
+            self.counts[o.index] += 1
+            self.sums[o.index] += o.reward
+
+
 class EXP3(OperatorSelector):
     """EXP3 bandit, suited to rewards that drift over the run.
 
