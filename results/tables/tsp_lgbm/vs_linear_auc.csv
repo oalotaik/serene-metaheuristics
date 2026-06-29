@@ -1,0 +1,5 @@
+host,metric,reference,baseline,winner,p,p_holm,significant
+ALNS,auc,serene-linear,roulette,serene-linear,9.5367431640625e-06,3.814697265625e-05,True
+ALNS,auc,serene-linear,serene-lgbm-greedy,serene-lgbm-greedy,0.0014324188232421875,0.0042972564697265625,True
+ALNS,auc,serene-linear,serene-greedy-linear,serene-greedy-linear,0.001689910888671875,0.0042972564697265625,True
+ALNS,auc,serene-linear,serene-lgbm,serene-linear,0.039989471435546875,0.039989471435546875,True

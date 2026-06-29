@@ -1,0 +1,5 @@
+metric,with_context,no_context,winner,p,mean_ctx,mean_noctx
+auc,lgbm-ctx-expl,lgbm-noctx-expl,lgbm-noctx-expl,0.8983173370361328,0.40682718288443986,0.40600923516206117
+auc,lgbm-ctx-greedy,lgbm-noctx-greedy,lgbm-ctx-greedy,0.13272666931152344,0.35700080671256584,0.36568401281801444
+gap,lgbm-ctx-expl,lgbm-noctx-expl,lgbm-noctx-expl,0.5705966949462891,0.09760483281010791,0.09642430210118794
+gap,lgbm-ctx-greedy,lgbm-noctx-greedy,lgbm-ctx-greedy,0.10539817810058594,0.09537655612812193,0.09901399132263612

@@ -1,0 +1,6 @@
+host,metric,reference,baseline,winner,p,p_holm,significant
+ALNS,auc,lgbm-ctx-greedy,roulette,lgbm-ctx-greedy,3.814697265625e-06,1.9073486328125e-05,True
+ALNS,auc,lgbm-ctx-greedy,lgbm-noctx-expl,lgbm-ctx-greedy,2.6702880859375e-05,0.0001068115234375,True
+ALNS,auc,lgbm-ctx-greedy,lgbm-ctx-expl,lgbm-ctx-greedy,3.62396240234375e-05,0.0001087188720703125,True
+ALNS,auc,lgbm-ctx-greedy,lgbm-noctx-greedy,lgbm-ctx-greedy,0.13272666931152344,0.2654533386230469,False
+ALNS,auc,lgbm-ctx-greedy,linear-ctx-greedy,linear-ctx-greedy,0.5216732025146484,0.5216732025146484,False
