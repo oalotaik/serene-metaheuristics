@@ -19,6 +19,7 @@ Writes per-run results + the budget-fraction summary tables under
 results/tables/cflp_*/.
 
     python scripts/run_cflp_study.py            # pilot: small tier (13x 16x50), 3 seeds, 300 evals
+    python scripts/run_cflp_study.py --medium   # medium tier (12x 25x50), 3 seeds, 300 evals
     python scripts/run_cflp_study.py --full     # full: 37 instances, 5 seeds, 500 evals
 """
 
@@ -38,6 +39,11 @@ SMALL_TIER = ["cap41", "cap42", "cap43", "cap44", "cap51",
               "cap61", "cap62", "cap63", "cap64",
               "cap71", "cap72", "cap73", "cap74"]
 
+# the medium (25x50) tier - one step up from the pilot
+MEDIUM_TIER = ["cap81", "cap82", "cap83", "cap84",
+               "cap91", "cap92", "cap93", "cap94",
+               "cap101", "cap102", "cap103", "cap104"]
+
 # the budget fractions that define "efficiency" for this project
 CUTOFFS = ["q25", "q50", "q75", "q100"]
 
@@ -52,9 +58,11 @@ def hosts(max_evals, tabu_tenure=20, rrt_deviation=0.02):
     }
 
 
-def main(full=False):
-    if full:
+def main(tier="small"):
+    if tier == "full":
         names, seeds, max_evals, out = CAP_INSTANCES, list(range(5)), 500, "results/tables/cflp_main"
+    elif tier == "medium":
+        names, seeds, max_evals, out = MEDIUM_TIER, list(range(3)), 300, "results/tables/cflp_medium"
     else:
         names, seeds, max_evals, out = SMALL_TIER, list(range(3)), 300, "results/tables/cflp_pilot"
 
@@ -66,7 +74,7 @@ def main(full=False):
     for hname, make in hosts(max_evals).items():
         configs.append(Config(f"greedy-mean|{hname}", lambda a: GreedyMean(a, epsilon=0.0), make))
 
-    print(f"CFLP {'FULL' if full else 'PILOT'}: {len(instances)} instances x {len(configs)} configs "
+    print(f"CFLP {tier.upper()}: {len(instances)} instances x {len(configs)} configs "
           f"x {len(seeds)} seeds, {max_evals} evals  (eval = transportation LP)")
 
     study = run_study(instances, configs, seeds=seeds, max_evals=max_evals, references=optima)
@@ -98,11 +106,13 @@ def main(full=False):
     figures = "results/figures"
     os.makedirs(figures, exist_ok=True)
     order = [f"{s}|ALNS" for s in ("serene", "greedy-mean", "roulette", "exp3", "uniform")]
-    tag = "cflp_full" if full else "cflp_pilot"
-    plot_regret_curves(study, order, os.path.join(figures, f"{tag}_alns_crossover"),
+    label = {"full": "full", "medium": "25x50 tier", "small": "16x50 tier"}[tier]
+    plot_regret_curves(study, order, os.path.join(figures, f"cflp_{tier}_alns_crossover"),
                        references=optima,
-                       title=f"OR-Library CFLP ({'full' if full else 'small tier'}), ALNS host")
+                       title=f"OR-Library CFLP ({label}), ALNS host")
 
 
 if __name__ == "__main__":
-    main(full="--full" in sys.argv[1:])
+    args = sys.argv[1:]
+    selected = "full" if "--full" in args else "medium" if "--medium" in args else "small"
+    main(tier=selected)
